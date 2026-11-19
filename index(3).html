@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>居場所を簡単に検索できる 私の安心基地</title>
+  <style>
+    /* ==========================================
+       完全自己完結・外部通信ゼロの温かみのあるスタイル定義
+    ========================================== */
+    :root {
+      --bg-outer: #EAE5DC;
+      --bg-warm: #F9F7F4;
+      --surface-white: #FFFFFF;
+      --surface-soft: #F3EFE9;
+      --accent-coral: #F27A54;
+      --accent-coral-hover: #E36842;
+      --accent-coral-light: #FFF0EB;
+      --sub-teal: #3BA398;
+      --sub-teal-hover: #318D83;
+      --sub-teal-light: #EBF7F5;
+      --amber-warm: #E59A24;
+      --amber-light: #FEF6E6;
+      --text-main: #3A3532;
+      --text-sub: #5C5550;
+      --text-muted: #7A726C;
+      --border-soft: #E6DFD5;
+      --shadow-soft: 0 4px 16px rgba(58, 53, 50, 0.05);
+      --shadow-shell: 0 12px 40px rgba(58, 53, 50, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-outer);
+      color: var(--text-main);
+      font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* スマホ実機＆PCモックアップ枠（最大450px中央配置） */
+    .app-shell {
+      max-width: 450px;
+      min-height: 100vh;
+      margin: 0 auto;
+      background-color: var(--bg-warm);
+      box-shadow: var(--shadow-shell);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* 共通ユーティリティ */
+    .hidden { display: none !important; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-wrap { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .items-start { align-items: flex-start; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .gap-1 { gap: 4px; }
+    .gap-1-5 { gap: 6px; }
+    .gap-2 { gap: 8px; }
+    .gap-2-5 { gap: 10px; }
+    .gap-3 { gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .w-full { width: 100%; }
+    .shrink-0 { flex-shrink: 0; }
+    .text-center { text-align: center; }
+    .text-left { text-align: left; }
+
+    /* タップフィードバック（すべてのボタン高さ42px以上を保証） */
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      transition: transform 0.12s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+    }
+    button:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+    button:disabled {
+      cursor: not-allowed;
+    }
+
+    /* 固定ヘッダー＆4モード切替タブ */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background-color: rgba(249, 247, 244, 0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 12px 14px 10px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--accent-coral-light);
+      color: var(--accent-coral);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--sub-teal);
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    .free-pill {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background-color: var(--surface-white);
+      border: 1px solid var(--border-soft);
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+
+    .mode-nav {
+      background-color: #EFEAE1;
+      padding: 4px;
+      border-radius: 16px;
+      margin-top: 10px;
+    }
+
+    .mode-tab {
+      min-height: 46px;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 2px;
+      line-height: 1.2;
+    }
+
+    .mode-tab .tab-emoji {
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+
+    .mode-tab.active {
+      background-color: var(--surface-white);
+      color: var(--accent-coral);
+      box-shadow: 0 2px 8px rgba(58, 53, 50, 0.08);
+    }
+
+    /* メイン領域 */
+    .app-main {
+      flex: 1;
+      padding: 16px 16px 88px;
+    }
+
+    .section-stack > * + * {
+      margin-top: 16px;
+    }
+
+    /* カード共通デザイン */
+    .card {
+      background-color: var(--surface-white);
+      border: 1px solid var(--border-soft);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .banner-coral {
+      background: linear-gradient(135deg, #FFF0EB 0%, #FDF6EC 100%);
+      border: 1px solid rgba(242, 122, 84, 0.28);
+      border-radius: 20px;
+      padding: 14px;
+    }
+
+    .banner-teal {
+      background-color: var(--sub-teal-light);
+      border: 1px solid rgba(59, 163, 152, 0.28);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .pill-label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    /* ボタンバリエーション（高さ44px〜48px） */
+    .btn-welcome-open {
+      min-height: 46px;
+      background-color: var(--surface-white);
+      color: var(--accent-coral);
+      border: 1.5px solid rgba(242, 122, 84, 0.45);
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .mood-chip {
+      min-height: 42px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background-color: var(--surface-white);
+      color: var(--text-main);
+      border: 1px solid var(--border-soft);
+    }
+
+    .mood-chip.active {
+      background-color: var(--sub-teal);
+      color: var(--surface-white);
+      border-color: var(--sub-teal);
+      box-shadow: 0 3px 10px rgba(59, 163, 152, 0.25);
+    }
+
+    /* ステータスバッジ・雰囲気ピル */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .status-open {
+      background-color: var(--sub-teal-light);
+      color: #267D74;
+      border-color: rgba(59, 163, 152, 0.3);
+    }
+    .status-busy {
+      background-color: var(--amber-light);
+      color: #A86B10;
+      border-color: rgba(229, 154, 36, 0.35);
+    }
+    .status-closed {
+      background-color: #EFECE6;
+      color: var(--text-muted);
+      border-color: #DCD4C8;
+    }
+
+    .atmosphere-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background-color: var(--bg-warm);
+      color: var(--text-main);
+      border: 1px solid var(--border-soft);
+    }
+
+    .tag-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 8px;
+      background-color: var(--bg-warm);
+      color: var(--text-muted);
+      border: 1px solid var(--border-soft);
+    }
+
+    /* 施設カード内アクションボタン */
+    .btn-guide {
+      min-height: 46px;
+      border-radius: 14px;
+      background-color: var(--bg-warm);
+      color: var(--text-main);
+      border: 1px solid #D8CFC3;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-checkin {
+      min-height: 46px;
+      border-radius: 14px;
+      background-color: var(--accent-coral);
+      color: var(--surface-white);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 3px 10px rgba(242, 122, 84, 0.25);
+    }
+
+    .btn-checkin.checked {
+      background-color: var(--sub-teal);
+      box-shadow: 0 3px 10px rgba(59, 163, 152, 0.25);
+    }
+
+    .btn-checkin:disabled {
+      background-color: #E5DFD6;
+      color: #968D86;
+      box-shadow: none;
+    }
+
+    /* 情報ボックス */
+    .info-box {
+      background-color: var(--bg-warm);
+      border: 1px solid var(--border-soft);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .note-box-coral {
+      background-color: #FFF9F7;
+      border: 1px solid rgba(242, 122, 84, 0.28);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    /* 学校モード用 生徒居場所カード・サマリー */
+    .stat-card {
+      background-color: var(--surface-white);
+      border: 1px solid var(--border-soft);
+      border-radius: 18px;
+      padding: 12px 8px;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .student-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .student-card {
+      background-color: var(--surface-white);
+      border: 1px solid var(--border-soft);
+      border-radius: 20px;
+      padding: 14px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .student-card.highlight-self {
+      border: 2px solid var(--sub-teal);
+      background-color: #FAFEFD;
+    }
+
+    /* 行政・施設モード用ワンタップボタン */
+    .admin-toggle-btn {
+      min-height: 44px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background-color: var(--bg-warm);
+      color: var(--text-main);
+      border: 1px solid var(--border-soft);
+      padding: 8px 6px;
+    }
+
+    .admin-toggle-btn.active-open {
+      background-color: var(--sub-teal);
+      color: var(--surface-white);
+      border-color: var(--sub-teal);
+    }
+    .admin-toggle-btn.active-busy {
+      background-color: var(--amber-warm);
+      color: var(--surface-white);
+      border-color: var(--amber-warm);
+    }
+    .admin-toggle-btn.active-closed {
+      background-color: #7A726C;
+      color: var(--surface-white);
+      border-color: #7A726C;
+    }
+    .admin-toggle-btn.active-mood {
+      background-color: var(--accent-coral);
+      color: var(--surface-white);
+      border-color: var(--accent-coral);
+    }
+
+    /* ボトムシートモーダル */
+    .sheet-wrapper {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+    }
+
+    .sheet-wrapper.sheet-hidden {
+      pointer-events: none;
+    }
+
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(58, 53, 50, 0.48);
+      opacity: 1;
+      transition: opacity 0.25s ease;
+    }
+
+    .sheet-wrapper.sheet-hidden .sheet-backdrop {
+      opacity: 0;
+    }
+
+    .sheet-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 450px;
+      margin: 0 auto;
+      background-color: var(--bg-warm);
+      border-top: 1px solid var(--border-soft);
+      border-radius: 26px 26px 0 0;
+      padding: 16px 18px 24px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 -8px 30px rgba(58, 53, 50, 0.16);
+      transform: translateY(0);
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .sheet-wrapper.sheet-hidden .sheet-panel {
+      transform: translateY(100%);
+    }
+
+    .sheet-handle {
+      width: 40px;
+      height: 5px;
+      background-color: #D6CEC3;
+      border-radius: 999px;
+      margin: 0 auto 14px;
+    }
+
+    .btn-close-circle {
+      min-width: 42px;
+      min-height: 42px;
+      border-radius: 50%;
+      background-color: var(--surface-white);
+      border: 1px solid var(--border-soft);
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary-coral {
+      min-height: 48px;
+      width: 100%;
+      border-radius: 16px;
+      background-color: var(--accent-coral);
+      color: var(--surface-white);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 16px;
+      box-shadow: 0 4px 12px rgba(242, 122, 84, 0.25);
+    }
+
+    .btn-primary-teal {
+      min-height: 48px;
+      width: 100%;
+      border-radius: 16px;
+      background-color: var(--sub-teal);
+      color: var(--surface-white);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(59, 163, 152, 0.25);
+    }
+
+    /* 肯定メッセージ選択肢カード */
+    .welcome-option-card {
+      width: 100%;
+      text-align: left;
+      padding: 14px;
+      border-radius: 18px;
+      background-color: var(--surface-white);
+      border: 2px solid var(--border-soft);
+      display: block;
+    }
+
+    .welcome-option-card.selected {
+      background-color: var(--accent-coral-light);
+      border-color: var(--accent-coral);
+    }
+
+    /* 声かけカード */
+    .voice-card {
+      background: linear-gradient(135deg, #FFF0EB 0%, #FFFFFF 100%);
+      border: 2px solid var(--accent-coral);
+      border-radius: 18px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .voice-card-inner {
+      background-color: var(--surface-white);
+      border: 1px solid rgba(242, 122, 84, 0.35);
+      border-radius: 12px;
+      padding: 14px 10px;
+      margin: 8px 0;
+    }
+
+    /* 鼓動アニメーション */
+    @keyframes gentleFloat {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-4px) scale(1.03); }
+    }
+    .animate-gentle {
+      animation: gentleFloat 2.8s ease-in-out infinite;
+    }
+
+    /* トースト通知 */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 60;
+      width: 90%;
+      max-width: 400px;
+      pointer-events: none;
+    }
+
+    .toast-box {
+      background-color: var(--text-main);
+      color: var(--surface-white);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 12px 16px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(58, 53, 50, 0.25);
+      animation: toastUp 0.28s ease forwards;
+    }
+
+    @keyframes toastUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .app-footer {
+      padding: 16px;
+      text-align: center;
+      border-top: 1px solid var(--border-soft);
+      font-size: 11px;
+      color: var(--text-muted);
+      background-color: var(--bg-warm);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- ヘッダー＆4モード切替タブ -->
+    <header class="app-header">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="brand-icon" aria-hidden="true">🏕️</div>
+          <div>
+            <p class="brand-sub">居場所を簡単に検索できる</p>
+            <h1 class="brand-title">私の安心基地</h1>
+          </div>
+        </div>
+        <span class="free-pill">予約不要・無料</span>
+      </div>
+
+      <!-- 立場別4モード切替タブ -->
+      <nav aria-label="立場別モード切替" class="mode-nav grid-4">
+        <button type="button" id="tab-child" class="mode-tab active" onclick="switchMode('child')">
+          <span class="tab-emoji" aria-hidden="true">🧒</span>
+          <span>こども</span>
+        </button>
+        <button type="button" id="tab-parent" class="mode-tab" onclick="switchMode('parent')">
+          <span class="tab-emoji" aria-hidden="true">👨‍👩‍👧</span>
+          <span>保護者</span>
+        </button>
+        <button type="button" id="tab-school" class="mode-tab" onclick="switchMode('school')">
+          <span class="tab-emoji" aria-hidden="true">🏫</span>
+          <span>学校</span>
+        </button>
+        <button type="button" id="tab-admin" class="mode-tab" onclick="switchMode('admin')">
+          <span class="tab-emoji" aria-hidden="true">🏛️</span>
+          <span>行政・施設</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="app-main">
+
+      <!-- ==========================================
+           ① 🧒 こどもモード
+      =========================================== -->
+      <section id="view-child" class="section-stack">
+        <!-- 上部バナー：あたたかいメッセージを選ぶ・見る -->
+        <div class="banner-coral">
+          <span class="pill-label" style="background:#FFFFFF; color:#F27A54; margin-bottom:6px;">
+            いま選んでいるお迎えのことば
+          </span>
+          <p id="selected-welcome-preview" style="font-size:13px; font-weight:700; margin:0; color:#3A3532;">
+            「よく来たね！今日もおつかれさま。ゆっくりしていってね」
+          </p>
+          <button type="button" class="btn-welcome-open w-full" onclick="openWelcomeModal()">
+            <span>💌 入室時のあたたかいメッセージを選ぶ・見る</span>
+          </button>
+        </div>
+
+        <!-- 今の気分チップ -->
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:8px;">
+            <h2 style="font-size:14px; font-weight:700; margin:0;">今の気分でさがす</h2>
+            <span style="font-size:11px; color:var(--text-muted);">ひとつえらんでね</span>
+          </div>
+          <div id="mood-chips" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- 施設カード一覧 -->
+        <div class="section-stack">
+          <div class="flex items-center justify-between">
+            <h2 style="font-size:14px; font-weight:700; margin:0;">いま行ける安心基地</h2>
+            <span id="facility-count" style="font-size:12px; font-weight:700; color:var(--sub-teal);">4件みつかりました</span>
+          </div>
+          <div id="child-facility-list" class="section-stack"></div>
+        </div>
+
+        <!-- ほっと一息よみもの（PR・タイアップ記事イメージ） -->
+        <div class="section-stack" style="padding-top:6px;">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 style="font-size:14px; font-weight:700; margin:0;">☕ ほっと一息よみもの</h2>
+              <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0;">心をゆるめるヒント＆おすすめアイテム紹介</p>
+            </div>
+            <span class="pill-label" style="background:var(--amber-light); color:#A86B10;">PR枠イメージ</span>
+          </div>
+          <div id="child-article-list" class="section-stack"></div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ② 👨‍👩‍👧 保護者モード
+      =========================================== -->
+      <section id="view-parent" class="section-stack hidden">
+        <div class="banner-teal">
+          <p style="font-size:12px; font-weight:700; color:var(--sub-teal); margin:0 0 4px;">
+            保護者さま向け 安心見守り画面
+          </p>
+          <p style="font-size:12px; color:var(--text-main); margin:0;">
+            お子さまが「チェックイン」を押すと、到着した場所と現地の様子が自動で届きます。細かな行動の監視ではなく、安全に過ごせている安心感をお届けします。
+          </p>
+        </div>
+
+        <!-- 滞在状況 1枚安心カード -->
+        <div id="parent-status-card" class="card section-stack"></div>
+
+        <!-- 最近の安心チェックイン履歴 -->
+        <div class="card section-stack">
+          <h3 style="font-size:14px; font-weight:700; margin:0;">🌿 最近の安心チェックイン履歴</h3>
+          <div id="parent-history-list" class="section-stack" style="margin-top:10px;"></div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ③ 🏫 学校モード（複数生徒のリアルタイム居場所一覧）
+      =========================================== -->
+      <section id="view-school" class="section-stack hidden">
+        <!-- 最上部：リアルタイム在籍サマリー（3つの大きな数字カード） -->
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:8px;">
+            <h2 style="font-size:15px; font-weight:700; margin:0;">👀 いまの安心基地 在籍サマリー</h2>
+            <span class="pill-label" style="background:var(--sub-teal-light); color:var(--sub-teal);">リアルタイム同期</span>
+          </div>
+          <div id="school-summary-cards" class="grid-3"></div>
+        </div>
+
+        <!-- 施設別フィルターチップ -->
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:6px;">
+            <span style="font-size:12px; font-weight:700; color:var(--text-sub);">拠点ごとに絞り込む</span>
+            <span id="school-filter-count" style="font-size:11px; font-weight:700; color:var(--sub-teal);">5名表示中</span>
+          </div>
+          <div id="school-facility-chips" class="flex flex-wrap gap-1-5"></div>
+        </div>
+
+        <!-- 「いまどこで過ごしているか」生徒別のリアルタイム居場所一覧 -->
+        <div class="section-stack">
+          <div class="flex items-center justify-between">
+            <h3 style="font-size:14px; font-weight:700; margin:0;">📍 いまどこで過ごしているか（生徒別一覧）</h3>
+          </div>
+          <div id="school-student-list" class="section-stack"></div>
+        </div>
+
+        <!-- 下部：案内用QRボタン＆月間出席連携サマリー（コンパクト整理） -->
+        <div class="card section-stack">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p style="font-size:11px; font-weight:700; color:var(--sub-teal); margin:0;">面談室・保健室でのご案内</p>
+              <h3 style="font-size:14px; font-weight:700; margin:2px 0 0;">生徒・保護者さまへの居場所紹介</h3>
+            </div>
+            <span class="pill-label" style="background:var(--bg-warm); color:var(--text-muted); border:1px solid var(--border-soft);">
+              予約不要・無料枠あり
+            </span>
+          </div>
+
+          <div class="flex flex-wrap gap-1-5">
+            <span class="tag-chip">🎫 すべて予約不要・無料枠あり</span>
+            <span class="tag-chip">🤝 スタッフ常駐拠点のみ</span>
+            <span class="tag-chip">🚉 通学路・駅近エリア対応</span>
+          </div>
+
+          <button type="button" class="btn-primary-teal" onclick="openQrModal()">
+            <span style="font-size:18px;">📱</span>
+            <span>保護者・生徒に案内用QRを見せる</span>
+          </button>
+        </div>
+
+        <div class="card section-stack">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p style="font-size:11px; font-weight:700; color:var(--accent-coral); margin:0;">教育支援センター参考連携</p>
+              <h3 style="font-size:14px; font-weight:700; margin:2px 0 0;">今月の地域居場所利用実績</h3>
+            </div>
+            <span class="pill-label" style="background:var(--accent-coral-light); color:var(--accent-coral);">
+              出席扱い参考連携
+            </span>
+          </div>
+
+          <div class="grid-2">
+            <div class="info-box">
+              <p style="font-size:11px; color:var(--text-muted); margin:0;">今月の延べ利用日数</p>
+              <p style="font-size:19px; font-weight:700; color:var(--sub-teal); margin:3px 0 0;">
+                <span id="school-days-count">34</span><span style="font-size:12px; color:var(--text-main); margin-left:4px;">日（5名計）</span>
+              </p>
+            </div>
+            <div class="info-box">
+              <p style="font-size:11px; color:var(--text-muted); margin:0;">本日の出席連携対象</p>
+              <p style="font-size:19px; font-weight:700; color:var(--accent-coral); margin:3px 0 0;">
+                <span id="school-today-target">4</span><span style="font-size:12px; color:var(--text-main); margin-left:4px;">名</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ④ 🏛️ 行政・施設モード
+      =========================================== -->
+      <section id="view-admin" class="section-stack hidden">
+        <div class="banner-coral">
+          <p style="font-size:13px; font-weight:700; color:var(--text-main); margin:0 0 4px;">
+            ⚡ 現場スタッフ用 ワンタップ状況更新
+          </p>
+          <p style="font-size:12px; color:var(--text-sub); margin:0;">
+            指1本で現在の状況を切り替えられます。変更は「こどもモード」の空き状況バッジやチェックインボタンに即座に反映されます。
+          </p>
+        </div>
+
+        <div id="admin-facility-list" class="section-stack"></div>
+      </section>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="app-footer">
+      ここは、あなたがただ「いるだけ」で大丈夫な場所です。
+    </footer>
+  </div>
+
+  <!-- ==========================================
+       ボトムシート 1：あたたかいメッセージ選択
+  =========================================== -->
+  <div id="modal-welcome" class="sheet-wrapper sheet-hidden" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeModal('modal-welcome')"></div>
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="flex items-center justify-between" style="margin-bottom:8px;">
+        <h3 style="font-size:16px; font-weight:700; margin:0;">💌 入室時のあたたかいメッセージ</h3>
+        <button type="button" class="btn-close-circle" onclick="closeModal('modal-welcome')" aria-label="とじる">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-muted); margin:0 0 14px;">
+        チェックインしたときに画面に表示されることばを選べます。今の気持ちにいちばんしっくりくるものを選んでね。
+      </p>
+
+      <div id="welcome-options" class="section-stack" style="margin-bottom:16px;"></div>
+
+      <button type="button" class="btn-primary-coral" onclick="closeModal('modal-welcome')">
+        このメッセージにする
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       ボトムシート 2：行き方・目印＆声かけカード
+  =========================================== -->
+  <div id="modal-guide" class="sheet-wrapper sheet-hidden" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeModal('modal-guide')"></div>
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="flex items-start justify-between gap-2" style="margin-bottom:12px;">
+        <div>
+          <span class="pill-label" style="background:var(--sub-teal-light); color:var(--sub-teal);">はじめてでも迷わないガイド</span>
+          <h3 id="guide-title" style="font-size:16px; font-weight:700; margin:6px 0 0;">施設名</h3>
+        </div>
+        <button type="button" class="btn-close-circle shrink-0" onclick="closeModal('modal-guide')" aria-label="とじる">✕</button>
+      </div>
+
+      <div class="section-stack" style="margin-bottom:14px;">
+        <div class="card" style="padding:13px;">
+          <p style="font-size:12px; font-weight:700; color:var(--accent-coral); margin:0 0 4px;">🚪 入り口の目印</p>
+          <p id="guide-entrance" style="font-size:13px; margin:0;"></p>
+        </div>
+
+        <div class="card" style="padding:13px;">
+          <p style="font-size:12px; font-weight:700; color:var(--sub-teal); margin:0 0 4px;">🪑 入ったあとの動き方</p>
+          <p id="guide-inside" style="font-size:13px; margin:0;"></p>
+        </div>
+
+        <div class="card" style="padding:13px;">
+          <p style="font-size:12px; font-weight:700; color:var(--text-muted); margin:0 0 4px;">😊 担当スタッフの目印</p>
+          <p id="guide-staff" style="font-size:13px; margin:0;"></p>
+        </div>
+      </div>
+
+      <!-- スタッフに見せるだけで伝わる声かけカード -->
+      <div class="voice-card" style="margin-bottom:14px;">
+        <p style="font-size:11px; font-weight:700; color:var(--accent-coral); margin:0;">
+          👇 話さなくても大丈夫！この画面を見せるだけで伝わります
+        </p>
+        <div class="voice-card-inner">
+          <p style="font-size:18px; font-weight:700; margin:0; line-height:1.4; color:var(--text-main);">
+            「安心基地のアプリを<br>見て来ました」
+          </p>
+        </div>
+        <p style="font-size:11px; color:var(--text-muted); margin:0;">
+          スタッフが笑顔で席まで案内してくれます
+        </p>
+      </div>
+
+      <button type="button" onclick="closeModal('modal-guide')"
+        style="min-height:46px; width:100%; border-radius:14px; background:var(--text-main); color:#FFFFFF; font-size:13px; font-weight:700;">
+        とじる
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       ボトムシート 3：チェックイン完了（肯定メッセージ演出）
+  =========================================== -->
+  <div id="modal-checkin" class="sheet-wrapper sheet-hidden" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeModal('modal-checkin')"></div>
+    <div class="sheet-panel text-center">
+      <div class="sheet-handle"></div>
+
+      <div class="animate-gentle" style="width:64px; height:64px; border-radius:50%; background:var(--accent-coral-light); display:inline-flex; align-items:center; justify-content:center; font-size:32px; margin-bottom:10px;">
+        🌸
+      </div>
+
+      <p id="checkin-spot-name" style="font-size:12px; font-weight:700; color:var(--sub-teal); margin:0 0 4px;">
+        施設名にチェックインしました
+      </p>
+      <h3 style="font-size:18px; font-weight:700; margin:0 0 12px;">
+        おかえりなさい、ほっと一息つこうね
+      </h3>
+
+      <div class="card" style="border:2px solid rgba(242,122,84,0.38); margin-bottom:12px;">
+        <p id="checkin-message-text" style="font-size:15px; font-weight:700; margin:0; line-height:1.6;">
+          「よく来たね！今日もおつかれさま。ゆっくりしていってね」
+        </p>
+      </div>
+
+      <div class="banner-teal flex items-center justify-center gap-2" style="padding:10px 12px; margin-bottom:16px;">
+        <span style="font-size:18px;">👨‍👩‍👧</span>
+        <p style="font-size:12px; font-weight:700; color:var(--sub-teal); margin:0;">
+          保護者画面に「着いたよ」をお知らせしました
+        </p>
+      </div>
+
+      <div class="grid-2">
+        <button type="button" onclick="closeModal('modal-checkin'); switchMode('parent');"
+          style="min-height:46px; border-radius:14px; background:#FFFFFF; border:1.5px solid var(--sub-teal); color:var(--sub-teal); font-size:12px; font-weight:700; padding:8px;">
+          保護者画面で確認する
+        </button>
+        <button type="button" onclick="closeModal('modal-checkin')"
+          style="min-height:46px; border-radius:14px; background:var(--accent-coral); color:#FFFFFF; font-size:13px; font-weight:700; padding:8px;">
+          ゆっくり過ごす
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       ボトムシート 4：学校モード用 案内QRモーダル
+  =========================================== -->
+  <div id="modal-qr" class="sheet-wrapper sheet-hidden" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeModal('modal-qr')"></div>
+    <div class="sheet-panel text-center">
+      <div class="sheet-handle"></div>
+      <div class="flex items-center justify-between" style="margin-bottom:8px;">
+        <span class="pill-label" style="background:var(--sub-teal-light); color:var(--sub-teal);">生徒・保護者さまご案内用</span>
+        <button type="button" class="btn-close-circle" onclick="closeModal('modal-qr')" aria-label="とじる">✕</button>
+      </div>
+
+      <h3 style="font-size:16px; font-weight:700; margin:0 0 4px;">「私の安心基地」案内コード</h3>
+      <p style="font-size:12px; color:var(--text-muted); margin:0 0 14px;">
+        スマホのカメラで読み取ると、地域の居場所一覧をすぐに見られます
+      </p>
+
+      <!-- 自己完結SVG描画QRコード -->
+      <div class="card" style="display:inline-block; padding:14px; margin-bottom:14px;">
+        <svg width="168" height="168" viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="案内用二次元コード">
+          <rect width="168" height="168" rx="12" fill="#FFFFFF"/>
+          <rect x="14" y="14" width="42" height="42" rx="6" stroke="#3A3532" stroke-width="6"/>
+          <rect x="26" y="26" width="18" height="18" rx="3" fill="#3BA398"/>
+          <rect x="112" y="14" width="42" height="42" rx="6" stroke="#3A3532" stroke-width="6"/>
+          <rect x="124" y="26" width="18" height="18" rx="3" fill="#F27A54"/>
+          <rect x="14" y="112" width="42" height="42" rx="6" stroke="#3A3532" stroke-width="6"/>
+          <rect x="26" y="124" width="18" height="18" rx="3" fill="#3BA398"/>
+          <rect x="68" y="16" width="10" height="10" rx="2" fill="#3A3532"/>
+          <rect x="86" y="16" width="14" height="10" rx="2" fill="#3A3532"/>
+          <rect x="68" y="34" width="18" height="10" rx="2" fill="#3A3532"/>
+          <rect x="92" y="42" width="10" height="14" rx="2" fill="#3A3532"/>
+          <rect x="16" y="68" width="14" height="10" rx="2" fill="#3A3532"/>
+          <rect x="38" y="68" width="18" height="10" rx="2" fill="#3A3532"/>
+          <rect x="16" y="86" width="24" height="10" rx="2" fill="#3A3532"/>
+          <rect x="48" y="86" width="10" height="16" rx="2" fill="#3A3532"/>
+          <rect x="66" y="66" width="36" height="36" rx="10" fill="#FFF0EB"/>
+          <circle cx="84" cy="84" r="10" fill="#F27A54"/>
+          <rect x="112" y="68" width="14" height="10" rx="2" fill="#3A3532"/>
+          <rect x="134" y="68" width="20" height="10" rx="2" fill="#3A3532"/>
+          <rect x="112" y="88" width="24" height="10" rx="2" fill="#3A3532"/>
+          <rect x="144" y="88" width="10" height="18" rx="2" fill="#3A3532"/>
+          <rect x="68" y="114" width="12" height="18" rx="2" fill="#3A3532"/>
+          <rect x="88" y="114" width="16" height="10" rx="2" fill="#3A3532"/>
+          <rect x="68" y="140" width="26" height="12" rx="2" fill="#3A3532"/>
+          <rect x="104" y="132" width="18" height="20" rx="2" fill="#3A3532"/>
+          <rect x="130" y="116" width="24" height="12" rx="2" fill="#3A3532"/>
+          <rect x="130" y="138" width="24" height="14" rx="2" fill="#3A3532"/>
+        </svg>
+      </div>
+
+      <div class="card text-left" style="padding:13px; margin-bottom:14px;">
+        <p style="font-size:12px; font-weight:700; margin:0 0 4px;">🌷 生徒さん・保護者さまへ</p>
+        <p style="font-size:12px; color:var(--text-muted); margin:0;">
+          「今日は少しひとりで落ち着きたいな」「学校以外の場所で過ごしたいな」という日に、いつでも使える地域の安心スポットをまとめています。申し込みや事前連絡はいりません。
+        </p>
+      </div>
+
+      <button type="button" class="btn-primary-teal" onclick="closeModal('modal-qr')">
+        画面をとじる
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       ボトムシート 5：ほっと一息よみもの＆PR商品紹介モーダル
+  =========================================== -->
+  <div id="modal-article" class="sheet-wrapper sheet-hidden" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeModal('modal-article')"></div>
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="flex items-center justify-between gap-2" style="margin-bottom:8px;">
+        <span id="article-modal-badge" class="pill-label" style="background:var(--amber-light); color:#A86B10;">PR・タイアップ</span>
+        <button type="button" class="btn-close-circle shrink-0" onclick="closeModal('modal-article')" aria-label="とじる">✕</button>
+      </div>
+
+      <h3 id="article-modal-title" style="font-size:16px; font-weight:700; margin:0 0 10px; line-height:1.45;">
+        記事タイトル
+      </h3>
+
+      <div id="article-modal-body" class="card" style="padding:14px; margin-bottom:14px; font-size:13px; color:var(--text-sub); line-height:1.7;">
+      </div>
+
+      <!-- 寄り添うPR商品紹介カード -->
+      <div class="banner-coral" style="margin-bottom:14px;">
+        <div class="flex items-center justify-between" style="margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:700; color:var(--accent-coral);">🎁 編集部おすすめアイテム紹介（PR）</span>
+          <span style="font-size:10px; color:var(--text-muted);">※企業タイアップ枠イメージ</span>
+        </div>
+        <p id="article-pr-name" style="font-size:14px; font-weight:700; margin:0 0 4px; color:var(--text-main);">商品名</p>
+        <p id="article-pr-desc" style="font-size:12px; color:var(--text-sub); margin:0 0 10px;">商品説明</p>
+        <button type="button" onclick="showToast('サンプルモックのため外部ページには移動しません 🌿')"
+          style="min-height:42px; width:100%; border-radius:12px; background:#FFFFFF; border:1.5px solid var(--accent-coral); color:var(--accent-coral); font-size:12px; font-weight:700;">
+          アイテムの詳細をのぞいてみる
+        </button>
+      </div>
+
+      <button type="button" onclick="closeModal('modal-article')"
+        style="min-height:46px; width:100%; border-radius:14px; background:var(--text-main); color:#FFFFFF; font-size:13px; font-weight:700;">
+        よみものをとじる
+      </button>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script>
+    // ==========================================
+    // アプリ全体の状態データ（4モード間でリアルタイム同期）
+    // ==========================================
+    const welcomeMessages = [
+      {
+        id: 'msg1',
+        label: '① 明るく歓迎・ねぎらい',
+        text: '「よく来たね！今日もおつかれさま。ゆっくりしていってね」'
+      },
+      {
+        id: 'msg2',
+        label: '② ただいるだけでOK',
+        text: '「何かしなきゃ、なんて思わなくて大丈夫。ただここにいるだけで花まるだよ」'
+      },
+      {
+        id: 'msg3',
+        label: '③ ありのままを肯定',
+        text: '「無理に笑わなくても、話さなくてもいいよ。あなたのペースで過ごしてね」'
+      }
+    ];
+
+    const relaxingArticles = [
+      {
+        id: 'art1',
+        badge: 'PR・タイアップ',
+        emoji: '🍵',
+        title: 'なんか今日行きたくない朝に、心をゆるめる3つのヒント',
+        summary: '理由がうまく言えないモヤモヤの朝は、温かい飲み物と深呼吸で自分のペースを取り戻そう。',
+        body: [
+          '「特別な理由はないけれど、なんだか今日は足が重い…」そんな日は、大人にも子どもにもあります。まずは自分を責めずに、「今日はお休みモードの日なんだな」とそのまま認めてあげることが大切です。',
+          '温かいノンカフェインのお茶をゆっくり飲んだり、お気に入りの安心基地でただぼーっと過ごしたりするだけでも、心は少しずつ回復していきます。'
+        ],
+        prName: 'おやすみ前のカモミール＆りんごハーブティー（お試しパック）',
+        prDesc: 'カフェインゼロでほっと甘い香り。安心基地のラウンジでも無料試飲キャンペーンを実施中です。'
+      },
+      {
+        id: 'art2',
+        badge: 'PR・タイアップ',
+        emoji: '📓',
+        title: 'ひとりで静かに過ごしたい日の、お気に入りノートの使い方',
+        summary: '誰にも見せない気持ちや好きなイラストを書き出すだけで、頭の中がすっと軽くなります。',
+        body: [
+          '誰かと話す元気がない日は、紙とペンだけで静かに過ごす時間が味方になってくれます。きれいな文章を書く必要はありません。今の気分を丸や三角で描くだけでも十分です。',
+          '図書館やカフェのひとり席で、お気に入りのペンを走らせる穏やかな時間を楽しんでみてください。'
+        ],
+        prName: '目にやさしいクリーム紙の「ゆるり方眼ノート＆パステルペン」',
+        prDesc: 'さらさら書けて裏抜けしにくい文具セット。学生応援キャンペーンで全国のお店にて展開中。'
+      }
+    ];
+
+    const moodFilters = [
+      'すべて',
+      '静かに過ごせる',
+      'ただいるだけでOK',
+      '誰かと少し話せる',
+      '勉強・作業ができる',
+      'ひとりになりたい',
+      'Wi-Fi・充電あり'
+    ];
+
+    const facilities = [
+      {
+        id: 'lib',
+        shortName: '中央図書館',
+        name: '中央図書館「中高生・読書のひろば」',
+        status: 'open',
+        atmosphere: 'quiet',
+        description: '本を読まなくても大丈夫。窓際のひとり席でぼーっとしたり、好きなマンガや雑誌を眺めたりして静かに過ごせる安心スペースです。',
+        tags: ['静かに過ごせる', 'ただいるだけでOK', '勉強・作業ができる', 'ひとりになりたい', 'Wi-Fi・充電あり'],
+        closeTime: '19:00',
+        address: '中央通り 1-2-3 文化センター 2階',
+        phone: '000-123-4501',
+        staffNote: '窓際の明るい席が空いています。静かな音楽が流れていて落ち着いた雰囲気です。',
+        guide: {
+          entrance: '正面入り口を入ってすぐ左の階段、またはエレベーターで2階へ上がります。突き当たりの緑色ののれんが目印です。',
+          inside: '受付で名前を書く必要はありません。空いている好きな席（仕切りつきのひとり席もあります）にそのまま座って大丈夫です。',
+          staff: '水色のエプロンをつけた「たけちゃん」がカウンターにいます。目が合ったら会釈するだけでもOKです。'
+        }
+      },
+      {
+        id: 'mall',
+        shortName: 'ほっとラウンジ',
+        name: 'ショッピングモール内「ほっとラウンジ」',
+        status: 'open',
+        atmosphere: 'chat',
+        description: 'お買い物のついでにふらっと立ち寄れる明るいラウンジ。無料の温かいお茶や電源席があり、スタッフと少しおしゃべりすることもできます。',
+        tags: ['ただいるだけでOK', '誰かと少し話せる', 'Wi-Fi・充電あり'],
+        closeTime: '20:00',
+        address: '駅前大通り 2-5-1 パークモール 3階南側',
+        phone: '000-123-4502',
+        staffNote: '午後からゆったりした空気です。温かいほうじ茶を用意してお待ちしています。',
+        guide: {
+          entrance: 'モール3階のフードコート横の通路を奥へ進むと、木目調のドアと「ほっとラウンジ」の看板が見えます。',
+          inside: '入って右側のソファ席でも、奥のカウンター席でも自由に選べます。スマホの充電ケーブルも無料で借りられます。',
+          staff: 'ベージュのパーカーを着た「みっちゃん」が常駐しています。話しかけられたくない時は「静かカード」を机に置けばそっとしておきます。'
+        }
+      },
+      {
+        id: 'childhall',
+        shortName: 'ふれあいスペース',
+        name: '児童館「ふれあいスペース」',
+        status: 'busy',
+        atmosphere: 'chat',
+        description: 'ボードゲームや画材、クッションがそろった自由な部屋。誰かと一緒に過ごしたい日も、端っこのビーズクッションでゴロゴロしたい日も大歓迎です。',
+        tags: ['ただいるだけでOK', '誰かと少し話せる', '勉強・作業ができる'],
+        closeTime: '18:00',
+        address: 'さくら並木 3-12-5 児童センター 1階',
+        phone: '000-123-4503',
+        staffNote: '今は数人がボードゲームや宿題をして過ごしています。奥の畳コーナーはまだ余裕があります。',
+        guide: {
+          entrance: '建物の正面玄関でくつを脱ぎ、すぐ右手の「ふれあいスペース」の引き戸を開けてください。',
+          inside: 'まずは奥のビーズクッションコーナーへどうぞ。スタッフが飲み物の場所をやさしく案内します。',
+          staff: 'オレンジ色の名札をつけた「しおりん」がいます。いつでも自分のペースで出入りできます。'
+        }
+      },
+      {
+        id: 'npo',
+        shortName: '放課後カフェ',
+        name: 'NPO運営「放課後カフェ」',
+        status: 'open',
+        atmosphere: 'quiet',
+        description: '夕方の時間帯に開いている小さな古民家風カフェ。無料のおやつや軽食があり、学校や家のことを忘れてほっと一息つける場所です。',
+        tags: ['静かに過ごせる', 'ただいるだけでOK', 'ひとりになりたい', 'Wi-Fi・充電あり'],
+        closeTime: '19:30',
+        address: 'あおば台 4-2-18 地域の家こもれび',
+        phone: '000-123-4504',
+        staffNote: '今日はとても静かで穏やかな時間です。焼きたてのクッキーを用意しています。',
+        guide: {
+          entrance: '白いフェンスと丸いランプが灯っている一軒家です。インターホンは押さずに、そのまま玄関のドアを開けて入ってください。',
+          inside: 'リビングのテーブル席か、縁側のひとり用チェアに座れます。ただおやつを食べて休むだけで大歓迎です。',
+          staff: 'エプロン姿の「はるさん」がキッチンにいます。声かけカードを見せるだけで、温かい飲み物を出してくれます。'
+        }
+      }
+    ];
+
+    const state = {
+      currentMode: 'child',
+      selectedWelcomeId: 'msg1',
+      selectedMood: 'すべて',
+      schoolFilterFacility: 'all',
+      students: [
+        {
+          id: 's1',
+          initials: 'A.S',
+          name: 'A.S さん（2年）',
+          avatarBg: '#EBF7F5',
+          avatarColor: '#267D74',
+          facilityId: 'lib',
+          arrivalTime: '13:45',
+          status: 'staying',
+          moodTag: '静かに過ごせる',
+          note: '窓際のひとり席で好きな文庫本を読みながら、穏やかに過ごしています。'
+        },
+        {
+          id: 's2',
+          initials: 'K.T',
+          name: 'K.T さん（3年）',
+          avatarBg: '#FFF0EB',
+          avatarColor: '#E36842',
+          facilityId: 'mall',
+          arrivalTime: '14:10',
+          status: 'staying',
+          moodTag: '誰かと少し話せる',
+          note: '温かいお茶を飲みながら、スタッフと最近ハマっている音楽の話を少ししました。'
+        },
+        {
+          id: 's3',
+          initials: 'M.Y',
+          name: 'M.Y さん（1年）',
+          avatarBg: '#FEF6E6',
+          avatarColor: '#A86B10',
+          facilityId: 'childhall',
+          arrivalTime: '14:30',
+          status: 'staying',
+          moodTag: 'ただいるだけでOK',
+          note: '畳コーナーのクッションでゆっくり休憩中。無理に話さず自分のペースで過ごせています。'
+        },
+        {
+          id: 's4',
+          initials: 'H.R',
+          name: 'H.R さん（2年）',
+          avatarBg: '#EFECE6',
+          avatarColor: '#7A726C',
+          facilityId: 'npo',
+          arrivalTime: '11:30',
+          status: 'left',
+          moodTag: 'ひとりになりたい',
+          note: 'お昼すぎまで縁側で静かに過ごしたあと、「また来るね」と笑顔で帰宅しました。'
+        }
+      ],
+      stayLog: {
+        isCheckedIn: false,
+        facilityId: 'lib',
+        arrivalTime: '15:20',
+        history: [
+          { date: '昨日', spot: '中央図書館「中高生・読書のひろば」', time: '15:40 〜 17:30' },
+          { date: '3日前', spot: 'NPO運営「放課後カフェ」', time: '16:10 〜 18:15' }
+        ]
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderWelcomeOptions();
+      renderMoodChips();
+      renderChildFacilities();
+      renderChildArticles();
+      renderParentView();
+      renderSchoolView();
+      renderAdminFacilities();
+      switchMode('child');
+    });
+
+    // ==========================================
+    // モード切替制御
+    // ==========================================
+    function switchMode(mode) {
+      state.currentMode = mode;
+      const modes = ['child', 'parent', 'school', 'admin'];
+
+      modes.forEach(m => {
+        const tab = document.getElementById(`tab-${m}`);
+        const view = document.getElementById(`view-${m}`);
+        if (!tab || !view) return;
+        if (m === mode) {
+          tab.classList.add('active');
+          view.classList.remove('hidden');
+        } else {
+          tab.classList.remove('active');
+          view.classList.add('hidden');
+        }
+      });
+
+      if (mode === 'child') renderChildFacilities();
+      if (mode === 'parent') renderParentView();
+      if (mode === 'school') renderSchoolView();
+      if (mode === 'admin') renderAdminFacilities();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ==========================================
+    // ① こどもモード描画＆操作
+    // ==========================================
+    function renderWelcomeOptions() {
+      const container = document.getElementById('welcome-options');
+      const selectedObj = welcomeMessages.find(m => m.id === state.selectedWelcomeId) || welcomeMessages[0];
+      document.getElementById('selected-welcome-preview').textContent = selectedObj.text;
+
+      container.innerHTML = welcomeMessages.map(msg => {
+        const isSelected = msg.id === state.selectedWelcomeId;
+        return `
+          <button type="button" onclick="selectWelcomeMessage('${msg.id}')"
+            class="welcome-option-card ${isSelected ? 'selected' : ''}">
+            <div class="flex items-center justify-between" style="margin-bottom:4px;">
+              <span style="font-size:12px; font-weight:700; color:${isSelected ? 'var(--accent-coral)' : 'var(--sub-teal)'};">
+                ${msg.label}
+              </span>
+              <span style="font-size:12px; font-weight:700; color:var(--accent-coral);">
+                ${isSelected ? '✓ 選択中' : ''}
+              </span>
+            </div>
+            <p style="font-size:13px; font-weight:700; margin:0; color:var(--text-main);">${msg.text}</p>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectWelcomeMessage(id) {
+      state.selectedWelcomeId = id;
+      renderWelcomeOptions();
+      showToast('入室時のメッセージを変更しました 💌');
+    }
+
+    function openWelcomeModal() {
+      renderWelcomeOptions();
+      openModal('modal-welcome');
+    }
+
+    function renderMoodChips() {
+      const container = document.getElementById('mood-chips');
+      container.innerHTML = moodFilters.map(mood => {
+        const active = state.selectedMood === mood;
+        return `
+          <button type="button" onclick="selectMood('${mood}')"
+            class="mood-chip ${active ? 'active' : ''}">
+            ${mood}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectMood(mood) {
+      state.selectedMood = mood;
+      renderMoodChips();
+      renderChildFacilities();
+    }
+
+    function getStatusInfo(status) {
+      if (status === 'open') return { text: '🟢 空きあり', cls: 'status-open' };
+      if (status === 'busy') return { text: '🟡 やや混雑', cls: 'status-busy' };
+      return { text: '🔴 受付終了', cls: 'status-closed' };
+    }
+
+    function getAtmosphereText(atmosphere) {
+      return atmosphere === 'quiet' ? '🤫 静かに過ごせる時間' : '💬 おしゃべりOK時間';
+    }
+
+    function renderChildFacilities() {
+      const listEl = document.getElementById('child-facility-list');
+      const countEl = document.getElementById('facility-count');
+
+      const filtered = state.selectedMood === 'すべて'
+        ? facilities
+        : facilities.filter(f => f.tags.includes(state.selectedMood));
+
+      countEl.textContent = `${filtered.length}件みつかりました`;
+
+      listEl.innerHTML = filtered.map(f => {
+        const st = getStatusInfo(f.status);
+        const isClosed = f.status === 'closed';
+        const isCheckedHere = state.stayLog.isCheckedIn && state.stayLog.facilityId === f.id;
+
+        return `
+          <article class="card section-stack" style="${isClosed ? 'opacity:0.82;' : ''}">
+            <div class="flex flex-wrap items-center justify-between gap-1-5">
+              <span class="status-badge ${st.cls}">${st.text}</span>
+              <span class="atmosphere-pill">${getAtmosphereText(f.atmosphere)}</span>
+            </div>
+
+            <div>
+              <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">${f.name}</h3>
+              <p style="font-size:12px; color:var(--text-sub); margin:0;">${f.description}</p>
+            </div>
+
+            <div class="flex flex-wrap gap-1-5">
+              ${f.tags.map(tag => `<span class="tag-chip">#${tag}</span>`).join('')}
+            </div>
+
+            <div class="grid-2" style="padding-top:2px;">
+              <button type="button" class="btn-guide" onclick="openGuideModal('${f.id}')">
+                <span>🚪</span>
+                <span>行き方・目印</span>
+              </button>
+
+              <button type="button"
+                class="btn-checkin ${isCheckedHere ? 'checked' : ''}"
+                onclick="handleCheckIn('${f.id}')"
+                ${isClosed ? 'disabled' : ''}>
+                <span>✨</span>
+                <span>${isClosed ? '本日の受付終了' : isCheckedHere ? '滞在中です' : 'チェックイン'}</span>
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function openGuideModal(facilityId) {
+      const f = facilities.find(item => item.id === facilityId);
+      if (!f) return;
+
+      document.getElementById('guide-title').textContent = f.name;
+      document.getElementById('guide-entrance').textContent = f.guide.entrance;
+      document.getElementById('guide-inside').textContent = f.guide.inside;
+      document.getElementById('guide-staff').textContent = f.guide.staff;
+      openModal('modal-guide');
+    }
+
+    function renderChildArticles() {
+      const container = document.getElementById('child-article-list');
+      if (!container) return;
+
+      container.innerHTML = relaxingArticles.map(art => `
+        <button type="button" onclick="openArticleModal('${art.id}')"
+          class="card text-left w-full" style="display:block; padding:14px;">
+          <div class="flex items-center justify-between gap-2" style="margin-bottom:6px;">
+            <span class="pill-label" style="background:var(--amber-light); color:#A86B10;">${art.badge}</span>
+            <span style="font-size:11px; font-weight:700; color:var(--sub-teal);">よむ ＞</span>
+          </div>
+          <div class="flex items-start gap-2-5">
+            <div style="width:42px; height:42px; border-radius:14px; background:var(--bg-warm); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+              ${art.emoji}
+            </div>
+            <div>
+              <h3 style="font-size:13px; font-weight:700; margin:0 0 4px; line-height:1.4; color:var(--text-main);">${art.title}</h3>
+              <p style="font-size:11px; color:var(--text-muted); margin:0; line-height:1.45;">${art.summary}</p>
+            </div>
+          </div>
+        </button>
+      `).join('');
+    }
+
+    function openArticleModal(articleId) {
+      const art = relaxingArticles.find(a => a.id === articleId);
+      if (!art) return;
+
+      document.getElementById('article-modal-badge').textContent = art.badge;
+      document.getElementById('article-modal-title').textContent = `${art.emoji} ${art.title}`;
+      document.getElementById('article-modal-body').innerHTML = art.body
+        .map(p => `<p style="margin:0 0 10px;">${p}</p>`)
+        .join('')
+        .replace(/margin:0 0 10px;"><\/p>$/, '');
+      document.getElementById('article-pr-name').textContent = art.prName;
+      document.getElementById('article-pr-desc').textContent = art.prDesc;
+      openModal('modal-article');
+    }
+
+    function handleCheckIn(facilityId) {
+      const f = facilities.find(item => item.id === facilityId);
+      if (!f || f.status === 'closed') return;
+
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${hh}:${mm}`;
+
+      state.stayLog.isCheckedIn = true;
+      state.stayLog.facilityId = f.id;
+      state.stayLog.arrivalTime = currentTimeStr;
+
+      // 生徒一覧の「あなた（自分）」データをリアルタイム追加・更新
+      const chosenMood = state.selectedMood === 'すべて' ? 'ただいるだけでOK' : state.selectedMood;
+      const selfRecord = {
+        id: 'self',
+        initials: '自分',
+        name: 'あなた（こどもモード連携）',
+        avatarBg: '#3BA398',
+        avatarColor: '#FFFFFF',
+        facilityId: f.id,
+        arrivalTime: currentTimeStr,
+        status: 'staying',
+        moodTag: chosenMood,
+        note: `「${chosenMood}」の気分でチェックインしました。スタッフが見守りながら穏やかに過ごしています。`,
+        isSelf: true
+      };
+
+      const existingIdx = state.students.findIndex(s => s.id === 'self');
+      if (existingIdx >= 0) {
+        state.students[existingIdx] = selfRecord;
+      } else {
+        state.students.unshift(selfRecord);
+      }
+
+      const latestEntry = {
+        date: `今日 ${currentTimeStr}`,
+        spot: f.name,
+        time: `${currentTimeStr} 〜 滞在中`
+      };
+      if (state.stayLog.history[0] && state.stayLog.history[0].time.includes('滞在中')) {
+        state.stayLog.history[0] = latestEntry;
+      } else {
+        state.stayLog.history.unshift(latestEntry);
+      }
+
+      document.getElementById('school-days-count').textContent = '35';
+
+      const selectedMsg = welcomeMessages.find(m => m.id === state.selectedWelcomeId) || welcomeMessages[0];
+      document.getElementById('checkin-spot-name').textContent = `${f.name} にチェックインしました`;
+      document.getElementById('checkin-message-text').textContent = selectedMsg.text;
+
+      renderChildFacilities();
+      renderParentView();
+      renderSchoolView();
+      renderAdminFacilities();
+      openModal('modal-checkin');
+    }
+
+    // ==========================================
+    // ② 保護者モード描画
+    // ==========================================
+    function renderParentView() {
+      const cardEl = document.getElementById('parent-status-card');
+      const historyEl = document.getElementById('parent-history-list');
+      const f = facilities.find(item => item.id === state.stayLog.facilityId) || facilities[0];
+      const isCheckedIn = state.stayLog.isCheckedIn;
+
+      cardEl.innerHTML = `
+        <div class="flex items-center justify-between gap-2" style="padding-bottom:12px; border-bottom:1px solid var(--border-soft);">
+          <span class="status-badge ${isCheckedIn ? 'status-open' : 'status-busy'}">
+            ${isCheckedIn ? '🟢 安心基地に滞在中です' : '🏠 チェックイン待機中（サンプル表示）'}
+          </span>
+          <span style="font-size:11px; color:var(--text-muted); font-weight:700;">自動更新</span>
+        </div>
+
+        <div>
+          <p style="font-size:11px; font-weight:700; color:var(--text-muted); margin:0 0 2px;">現在の滞在スポット</p>
+          <h2 style="font-size:17px; font-weight:700; margin:0;">${f.name}</h2>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <p style="font-size:11px; color:var(--text-muted); margin:0;">到着時刻</p>
+            <p style="font-size:16px; font-weight:700; margin:4px 0 0;">${state.stayLog.arrivalTime}</p>
+          </div>
+          <div class="info-box">
+            <p style="font-size:11px; color:var(--text-muted); margin:0;">閉館時間（目安）</p>
+            <p style="font-size:16px; font-weight:700; color:var(--sub-teal); margin:4px 0 0;">${f.closeTime} まで</p>
+          </div>
+        </div>
+
+        <div class="section-stack">
+          <div class="info-box">
+            <p style="font-size:11px; font-weight:700; color:var(--text-muted); margin:0 0 2px;">📍 施設の住所</p>
+            <p style="font-size:13px; font-weight:700; margin:0;">${f.address}</p>
+          </div>
+
+          <div class="info-box flex items-center justify-between">
+            <div>
+              <p style="font-size:11px; font-weight:700; color:var(--text-muted); margin:0 0 2px;">📞 施設連絡先</p>
+              <p style="font-size:13px; font-weight:700; margin:0;">${f.phone}</p>
+            </div>
+            <span class="pill-label" style="background:#FFFFFF; border:1px solid var(--border-soft); color:var(--sub-teal);">
+              スタッフ常駐
+            </span>
+          </div>
+
+          <div class="note-box-coral">
+            <p style="font-size:11px; font-weight:700; color:var(--accent-coral); margin:0 0 4px;">
+              💬 スタッフからの一言メモ（現地の様子）
+            </p>
+            <p style="font-size:12px; margin:0;">${f.staffNote}</p>
+          </div>
+        </div>
+      `;
+
+      historyEl.innerHTML = state.stayLog.history.map(item => `
+        <div class="info-box flex items-center justify-between" style="padding:10px 12px;">
+          <div>
+            <p style="font-size:11px; font-weight:700; color:var(--sub-teal); margin:0;">${item.date}</p>
+            <p style="font-size:12px; font-weight:700; margin:2px 0 0;">${item.spot}</p>
+          </div>
+          <span style="font-size:11px; color:var(--text-muted); font-weight:600;">${item.time}</span>
+        </div>
+      `).join('');
+    }
+
+    // ==========================================
+    // ③ 学校モード描画（複数生徒のリアルタイム居場所一覧）
+    // ==========================================
+    function setSchoolFilter(facilityId) {
+      state.schoolFilterFacility = facilityId;
+      renderSchoolView();
+    }
+
+    function renderSchoolView() {
+      const summaryEl = document.getElementById('school-summary-cards');
+      const chipsEl = document.getElementById('school-facility-chips');
+      const listEl = document.getElementById('school-student-list');
+      const countEl = document.getElementById('school-filter-count');
+      const targetEl = document.getElementById('school-today-target');
+
+      const stayingStudents = state.students.filter(s => s.status === 'staying');
+      const activeFacilityIds = new Set(stayingStudents.map(s => s.facilityId));
+      const totalPresentToday = state.students.length;
+
+      if (targetEl) targetEl.textContent = String(totalPresentToday);
+
+      summaryEl.innerHTML = `
+        <div class="stat-card">
+          <p style="font-size:10px; font-weight:700; color:var(--text-muted); margin:0;">いま居場所にいる</p>
+          <p style="font-size:24px; font-weight:700; color:var(--sub-teal); margin:4px 0 0; line-height:1.1;">
+            ${stayingStudents.length}<span style="font-size:12px; color:var(--text-main); margin-left:2px;">名</span>
+          </p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:10px; font-weight:700; color:var(--text-muted); margin:0;">利用中の拠点</p>
+          <p style="font-size:24px; font-weight:700; color:var(--accent-coral); margin:4px 0 0; line-height:1.1;">
+            ${activeFacilityIds.size}<span style="font-size:12px; color:var(--text-main); margin-left:2px;">拠点</span>
+          </p>
+        </div>
+        <div class="stat-card">
+          <p style="font-size:10px; font-weight:700; color:var(--text-muted); margin:0;">本日の出席連携</p>
+          <p style="font-size:24px; font-weight:700; color:var(--text-main); margin:4px 0 0; line-height:1.1;">
+            ${totalPresentToday}<span style="font-size:12px; color:var(--text-main); margin-left:2px;">名</span>
+          </p>
+        </div>
+      `;
+
+      const filterOptions = [
+        { id: 'all', label: `すべて (${state.students.length})` },
+        ...facilities.map(f => {
+          const cnt = state.students.filter(s => s.facilityId === f.id && s.status === 'staying').length;
+          return { id: f.id, label: `${f.shortName} (${cnt})` };
+        })
+      ];
+
+      chipsEl.innerHTML = filterOptions.map(opt => {
+        const isActive = state.schoolFilterFacility === opt.id;
+        return `
+          <button type="button" onclick="setSchoolFilter('${opt.id}')"
+            class="mood-chip ${isActive ? 'active' : ''}" style="min-height:42px; padding:6px 12px;">
+            ${opt.label}
+          </button>
+        `;
+      }).join('');
+
+      const filteredStudents = state.schoolFilterFacility === 'all'
+        ? state.students
+        : state.students.filter(s => s.facilityId === state.schoolFilterFacility);
+
+      countEl.textContent = `${filteredStudents.length}名表示中`;
+
+      if (filteredStudents.length === 0) {
+        listEl.innerHTML = `
+          <div class="card text-center" style="padding:20px;">
+            <p style="font-size:13px; font-weight:700; color:var(--text-muted); margin:0;">
+              現在この拠点を利用している生徒はいません
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = filteredStudents.map(st => {
+        const fac = facilities.find(f => f.id === st.facilityId) || facilities[0];
+        const isStaying = st.status === 'staying';
+        return `
+          <article class="student-card section-stack ${st.isSelf ? 'highlight-self' : ''}">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2-5">
+                <div class="student-avatar" style="background:${st.avatarBg}; color:${st.avatarColor};">
+                  ${st.initials}
+                </div>
+                <div>
+                  <div class="flex items-center gap-1-5">
+                    <h4 style="font-size:14px; font-weight:700; margin:0;">${st.name}</h4>
+                  </div>
+                  <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0;">
+                    到着 ${st.arrivalTime} ・ #${st.moodTag}
+                  </p>
+                </div>
+              </div>
+              <span class="status-badge ${isStaying ? 'status-open' : 'status-closed'} shrink-0">
+                ${isStaying ? '🟢 滞在中' : '🏠 帰宅済み'}
+              </span>
+            </div>
+
+            <div class="info-box" style="padding:10px 12px;">
+              <p style="font-size:11px; font-weight:700; color:var(--sub-teal); margin:0 0 2px;">📍 現在の居場所</p>
+              <p style="font-size:13px; font-weight:700; margin:0 0 6px;">${fac.name}</p>
+              <p style="font-size:12px; color:var(--text-sub); margin:0;">${st.note}</p>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // ④ 行政・施設モード描画＆ワンタップ切替
+    // ==========================================
+    function renderAdminFacilities() {
+      const container = document.getElementById('admin-facility-list');
+
+      container.innerHTML = facilities.map(f => {
+        const st = getStatusInfo(f.status);
+        const stayingHere = state.students.filter(s => s.facilityId === f.id && s.status === 'staying');
+        const moodSummary = stayingHere.length > 0
+          ? stayingHere.map(s => `#${s.moodTag}`).join(' / ')
+          : '現在チェックイン中の生徒はいません';
+
+        return `
+          <div class="card section-stack">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 style="font-size:14px; font-weight:700; margin:0;">${f.name}</h3>
+                <p style="font-size:11px; color:var(--text-muted); margin:3px 0 0;">
+                  閉館 ${f.closeTime} / 現在：${getAtmosphereText(f.atmosphere)}
+                </p>
+              </div>
+              <span class="status-badge ${st.cls} shrink-0">${st.text}</span>
+            </div>
+
+            <!-- 施設に今いる生徒の人数・気分サマリー -->
+            <div class="banner-teal" style="padding:10px 12px;">
+              <div class="flex items-center justify-between" style="margin-bottom:3px;">
+                <span style="font-size:11px; font-weight:700; color:var(--sub-teal);">👥 いま滞在中の生徒・気分サマリー</span>
+                <span style="font-size:12px; font-weight:700; color:var(--text-main);">現在 ${stayingHere.length} 名</span>
+              </div>
+              <p style="font-size:11px; color:var(--text-sub); margin:0;">${moodSummary}</p>
+            </div>
+
+            <div>
+              <p style="font-size:11px; font-weight:700; color:var(--text-muted); margin:0 0 6px;">
+                1. 受け入れ状況（タップで即反映）
+              </p>
+              <div class="grid-3">
+                <button type="button" onclick="updateFacilityStatus('${f.id}', 'open')"
+                  class="admin-toggle-btn ${f.status === 'open' ? 'active-open' : ''}">
+                  🟢 空きあり
+                </button>
+                <button type="button" onclick="updateFacilityStatus('${f.id}', 'busy')"
+                  class="admin-toggle-btn ${f.status === 'busy' ? 'active-busy' : ''}">
+                  🟡 やや混雑
+                </button>
+                <button type="button" onclick="updateFacilityStatus('${f.id}', 'closed')"
+                  class="admin-toggle-btn ${f.status === 'closed' ? 'active-closed' : ''}">
+                  🔴 受付終了
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p style="font-size:11px; font-weight:700; color:var(--text-muted); margin:0 0 6px;">
+                2. 今の過ごし方モード
+              </p>
+              <div class="grid-2">
+                <button type="button" onclick="updateFacilityAtmosphere('${f.id}', 'quiet')"
+                  class="admin-toggle-btn ${f.atmosphere === 'quiet' ? 'active-mood' : ''}">
+                  🤫 静かに過ごせる時間
+                </button>
+                <button type="button" onclick="updateFacilityAtmosphere('${f.id}', 'chat')"
+                  class="admin-toggle-btn ${f.atmosphere === 'chat' ? 'active-mood' : ''}">
+                  💬 おしゃべりOK時間
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateFacilityStatus(facilityId, newStatus) {
+      const f = facilities.find(item => item.id === facilityId);
+      if (!f) return;
+      f.status = newStatus;
+
+      const labelMap = {
+        open: '🟢 空きあり',
+        busy: '🟡 やや混雑',
+        closed: '🔴 受付終了'
+      };
+
+      renderAdminFacilities();
+      renderChildFacilities();
+      showToast(`「${f.name}」を ${labelMap[newStatus]} に更新しました`);
+    }
+
+    function updateFacilityAtmosphere(facilityId, newAtmosphere) {
+      const f = facilities.find(item => item.id === facilityId);
+      if (!f) return;
+      f.atmosphere = newAtmosphere;
+
+      const labelMap = {
+        quiet: '🤫 静かに過ごせる時間',
+        chat: '💬 おしゃべりOK時間'
+      };
+
+      renderAdminFacilities();
+      renderChildFacilities();
+      showToast(`雰囲気を「${labelMap[newAtmosphere]}」に切り替えました`);
+    }
+
+    // ==========================================
+    // 共通ボトムシート＆トースト通知制御
+    // ==========================================
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('sheet-hidden');
+      el.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('sheet-hidden');
+      el.setAttribute('aria-hidden', 'true');
+    }
+
+    let toastTimer = null;
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      container.innerHTML = `<div class="toast-box">${message}</div>`;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        container.innerHTML = '';
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
